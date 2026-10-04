@@ -1,0 +1,33 @@
+# Fly.io configuration for Object Detection App
+app = "objectdetection"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATABASE = "/data/objectdetection.db"
+  UPLOAD_FOLDER = "/data/uploads"
+
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "60s"
+    method = "GET"
+    path = "/health"
+
+[vm]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 1

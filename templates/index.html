@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection App</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Object Detection App</h1>
+        <p>Upload an image to detect objects and text using OpenCV & EasyOCR</p>
+
+        <div class="upload-section">
+            <input type="file" id="imageInput" accept="image/*">
+            <button id="detectBtn" onclick="detectObjects()">Detect Objects</button>
+        </div>
+
+        <div id="result" class="result hidden">
+            <h2>Detection Results</h2>
+            <div id="imagePreview"></div>
+            <div id="objectsList"></div>
+            <div id="textList"></div>
+        </div>
+
+        <div id="history" class="history">
+            <h2>Recent Detections</h2>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        async function detectObjects() {
+            const input = document.getElementById('imageInput');
+            if (!input.files[0]) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', input.files[0]);
+
+            const btn = document.getElementById('detectBtn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults(data);
+                    loadHistory();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Detect Objects';
+            }
+        }
+
+        function displayResults(data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.classList.remove('hidden');
+
+            // Show image preview
+            document.getElementById('imagePreview').innerHTML =
+                `<img src="/uploads/${data.filename}" alt="Uploaded">`;
+
+            // Show detected objects
+            const objectsDiv = document.getElementById('objectsList');
+            if (data.objects_detected && data.objects_detected.length > 0) {
+                objectsDiv.innerHTML = '<h3>Objects Detected:</h3><ul>' +
+                    data.objects_detected.map(obj =>
+                        `<li>${obj.class} (confidence: ${obj.confidence})</li>`
+                    ).join('') + '</ul>';
+            } else {
+                objectsDiv.innerHTML = '<p>No objects detected</p>';
+            }
+
+            // Show detected text
+            const textDiv = document.getElementById('textList');
+            if (data.text_detected && data.text_detected.length > 0) {
+                textDiv.innerHTML = '<h3>Text Detected:</h3><ul>' +
+                    data.text_detected.map(t =>
+                        `<li>"${t.text}" (confidence: ${t.confidence})</li>`
+                    ).join('') + '</ul>';
+            } else {
+                textDiv.innerHTML = '<p>No text detected</p>';
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                const history = await response.json();
+
+                const historyDiv = document.getElementById('historyList');
+                historyDiv.innerHTML = history.map(item =>
+                    `<div class="history-item">
+                        <strong>${item.original_name}</strong>
+                        <span>${item.created_at}</span>
+                        <p>Objects: ${item.objects_detected}</p>
+                    </div>`
+                ).join('');
+            } catch (err) {
+                console.error('Failed to load history:', err);
+            }
+        }
+
+        // Load history on page load
+        loadHistory();
+    </script>
+</body>
+</html>
